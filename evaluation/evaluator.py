@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-from add_word_length import df
 from language import normalize_arabic
 from main import load_model_and_tokenizer, greedy_decode
 from metrics import calculate_exact_match, calculate_f1_word_match, calculate_rouge, calculate_bleu
@@ -67,7 +66,7 @@ def evaluate_qa_model(
     os.makedirs(output_dir, exist_ok=True)
 
     # Load dataset
-    questions, answers, categories, sub_categories = load_dataset(dataset_path, sample_size, question_lang)
+    questions, answers, categories, sub_categories, df = load_dataset(dataset_path, sample_size, question_lang)
 
     # Load model and tokenizer
     logger.info("Loading model and tokenizer")
@@ -604,3 +603,50 @@ def analyze_sample(reference, generated, sample_id, question_lang):
     analysis['has_metric_discrepancy'] = has_discrepancy
 
     return analysis
+
+
+def debug_text_comparison(reference, generated, id_num):
+    """
+    Debug helper to identify issues with text comparison
+
+    Args:
+        reference: Reference text
+        generated: Generated text
+        id_num: ID of the sample for logging
+    """
+    logger.debug(f"=== Debugging item {id_num} ===")
+    logger.debug(f"Reference (len={len(reference)}): {repr(reference)}")
+    logger.debug(f"Generated (len={len(generated)}): {repr(generated)}")
+
+    # Check character by character
+    if len(reference) == len(generated):
+        mismatch_positions = []
+        for i, (r, g) in enumerate(zip(reference, generated)):
+            if r != g:
+                mismatch_positions.append(f"Position {i}: '{r}' (\\u{ord(r):04x}) vs '{g}' (\\u{ord(g):04x})")
+
+        if mismatch_positions:
+            logger.debug("Character mismatches:")
+            for pos in mismatch_positions[:10]:  # Limit to first 10 mismatches
+                logger.debug(f"  {pos}")
+            if len(mismatch_positions) > 10:
+                logger.debug(f"  ... and {len(mismatch_positions) - 10} more mismatches")
+        else:
+            logger.debug("No character-by-character mismatches, but strings compare as unequal.")
+            logger.debug("This suggests possible encoding or invisible character issues.")
+    else:
+        logger.debug(f"String lengths differ: reference={len(reference)}, generated={len(generated)}")
+
+    # Check normalized versions
+    norm_ref = normalize_arabic(reference)
+    norm_gen = normalize_arabic(generated)
+    logger.debug(f"Normalized reference (len={len(norm_ref)}): {repr(norm_ref)}")
+    logger.debug(f"Normalized generated (len={len(norm_gen)}): {repr(norm_gen)}")
+    logger.debug(f"Normalized strings equal? {norm_ref == norm_gen}")
+
+    # Check after removing all whitespace
+    no_space_ref = re.sub(r'\s+', '', norm_ref)
+    no_space_gen = re.sub(r'\s+', '', norm_gen)
+    logger.debug(f"No-space reference (len={len(no_space_ref)}): {repr(no_space_ref)}")
+    logger.debug(f"No-space generated (len={len(no_space_gen)}): {repr(no_space_gen)}")
+    logger.debug(f"No-space strings equal? {no_space_ref == no_space_gen}")

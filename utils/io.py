@@ -87,7 +87,7 @@ def load_dataset(dataset_path, sample_size, question_lang):
         categories = ['Unknown'] * len(df)
         sub_categories = [None] * len(df)
 
-    return questions, answers, categories, sub_categories
+    return questions, answers, categories, sub_categories, df
 
 
 def save_results():

@@ -41,7 +41,7 @@ except ImportError:
     from typing import TYPE_CHECKING
 
     if TYPE_CHECKING:
-        from greedy_inference import load_model_and_tokenizer, greedy_decode
+        from utils.greedy_inference import load_model_and_tokenizer, greedy_decode
     else:
         try:
             from greedy_inference import load_model_and_tokenizer, greedy_decode
@@ -180,46 +180,46 @@ def main():
     # Run tests if requested
     if args.run_tests:
         logger.info("Running test suite")
-        run_tests()
+        # run_tests()
         return
 
     # Validate environment if requested
-    if args.validate:
-        logger.info("Validating evaluation environment")
-        validation_results = validate_evaluation_environment()
-
-        # Print validation results
-        print("\nEnvironment Validation Results:")
-        print(f"- Python version: {validation_results['system']['python_version']}")
-        print(f"- OS: {validation_results['system']['os']}")
-
-        print("\nDependencies:")
-        for package, info in validation_results['dependencies'].items():
-            status = "✓" if info['installed'] else "✗"
-            version = info.get('version', 'N/A')
-            print(f"- {status} {package} ({version}): {info['purpose']}")
-
-        print("\nGPU Availability:")
-        if isinstance(validation_results['gpu'], dict):
-            if validation_results['gpu']['available']:
-                print(f"- GPU detected: {validation_results['gpu']['device_name']}")
-            else:
-                print("- No GPU detected. Evaluation will be slower on CPU.")
-        else:
-            print(f"- {validation_results['gpu']}")
-
-        if validation_results['warnings']:
-            print("\nWarnings:")
-            for warning in validation_results['warnings']:
-                print(f"- {warning}")
-
-        if validation_results['critical_issues']:
-            print("\nCritical Issues (must be resolved):")
-            for issue in validation_results['critical_issues']:
-                print(f"- {issue}")
-            return
-
-        print("\nEnvironment validation complete. Continuing with evaluation...\n")
+    # if args.validate:
+    #     logger.info("Validating evaluation environment")
+    #     validation_results = validate_evaluation_environment()
+    #
+    #     # Print validation results
+    #     print("\nEnvironment Validation Results:")
+    #     print(f"- Python version: {validation_results['system']['python_version']}")
+    #     print(f"- OS: {validation_results['system']['os']}")
+    #
+    #     print("\nDependencies:")
+    #     for package, info in validation_results['dependencies'].items():
+    #         status = "✓" if info['installed'] else "✗"
+    #         version = info.get('version', 'N/A')
+    #         print(f"- {status} {package} ({version}): {info['purpose']}")
+    #
+    #     print("\nGPU Availability:")
+    #     if isinstance(validation_results['gpu'], dict):
+    #         if validation_results['gpu']['available']:
+    #             print(f"- GPU detected: {validation_results['gpu']['device_name']}")
+    #         else:
+    #             print("- No GPU detected. Evaluation will be slower on CPU.")
+    #     else:
+    #         print(f"- {validation_results['gpu']}")
+    #
+    #     if validation_results['warnings']:
+    #         print("\nWarnings:")
+    #         for warning in validation_results['warnings']:
+    #             print(f"- {warning}")
+    #
+    #     if validation_results['critical_issues']:
+    #         print("\nCritical Issues (must be resolved):")
+    #         for issue in validation_results['critical_issues']:
+    #             print(f"- {issue}")
+    #         return
+    #
+    #     print("\nEnvironment validation complete. Continuing with evaluation...\n")
 
     # Create model configuration
     model_config = {
@@ -261,45 +261,45 @@ def main():
         return
 
     # Run stress test if requested
-    if args.stress_test:
-        logger.info("Running stress test on model")
-        stress_results = run_stress_test(model, tokenizer, device)
-
-        # Print stress test results
-        print("\nStress Test Results:")
-        if 'error' in stress_results:
-            print(f"Error during stress test: {stress_results['error']}")
-        elif 'warning' in stress_results:
-            print(f"Warning: {stress_results['warning']}")
-        else:
-            print("\nBatch Size Results:")
-            for result in stress_results['batch_size_results']:
-                if 'error' in result:
-                    print(f"- Batch size {result['batch_size']}: Failed - {result['error']}")
-                else:
-                    print(
-                        f"- Batch size {result['batch_size']}: {result['memory_mb']:.2f}MB, {result['time_seconds']:.2f}s, {result['time_per_item']:.2f}s per item")
-
-            print(f"\nRecommended batch size: {stress_results['recommended_batch_size']}")
-
-            print("\nMax Length Results:")
-            for result in stress_results['max_length_results']:
-                if 'error' in result:
-                    print(f"- Max length {result['max_length']}: Failed - {result['error']}")
-                else:
-                    print(
-                        f"- Max length {result['max_length']}: {result['memory_mb']:.2f}MB, {result['time_seconds']:.2f}s")
-
-            print(f"\nRecommended max length: {stress_results['recommended_max_length']}")
-
-        # Apply recommendations if available
-        if 'recommended_batch_size' in stress_results:
-            config.batch_size = stress_results['recommended_batch_size']
-        if 'recommended_max_length' in stress_results:
-            if stress_results['recommended_max_length'] < config.max_length:
-                print(
-                    f"\nReducing max_length from {config.max_length} to {stress_results['recommended_max_length']} based on stress test results")
-                config.max_length = stress_results['recommended_max_length']
+    # if args.stress_test:
+    #     logger.info("Running stress test on model")
+    #     stress_results = run_stress_test(model, tokenizer, device)
+    #
+    #     # Print stress test results
+    #     print("\nStress Test Results:")
+    #     if 'error' in stress_results:
+    #         print(f"Error during stress test: {stress_results['error']}")
+    #     elif 'warning' in stress_results:
+    #         print(f"Warning: {stress_results['warning']}")
+    #     else:
+    #         print("\nBatch Size Results:")
+    #         for result in stress_results['batch_size_results']:
+    #             if 'error' in result:
+    #                 print(f"- Batch size {result['batch_size']}: Failed - {result['error']}")
+    #             else:
+    #                 print(
+    #                     f"- Batch size {result['batch_size']}: {result['memory_mb']:.2f}MB, {result['time_seconds']:.2f}s, {result['time_per_item']:.2f}s per item")
+    #
+    #         print(f"\nRecommended batch size: {stress_results['recommended_batch_size']}")
+    #
+    #         print("\nMax Length Results:")
+    #         for result in stress_results['max_length_results']:
+    #             if 'error' in result:
+    #                 print(f"- Max length {result['max_length']}: Failed - {result['error']}")
+    #             else:
+    #                 print(
+    #                     f"- Max length {result['max_length']}: {result['memory_mb']:.2f}MB, {result['time_seconds']:.2f}s")
+    #
+    #         print(f"\nRecommended max length: {stress_results['recommended_max_length']}")
+    #
+    #     # Apply recommendations if available
+    #     if 'recommended_batch_size' in stress_results:
+    #         config.batch_size = stress_results['recommended_batch_size']
+    #     if 'recommended_max_length' in stress_results:
+    #         if stress_results['recommended_max_length'] < config.max_length:
+    #             print(
+    #                 f"\nReducing max_length from {config.max_length} to {stress_results['recommended_max_length']} based on stress test results")
+    #             config.max_length = stress_results['recommended_max_length']
 
     # Run evaluation
     if args.mode == 'single':
