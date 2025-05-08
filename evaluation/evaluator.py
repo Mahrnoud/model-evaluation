@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 import logging
 
-from visualization import create_visualizations, create_comparative_visualization
+# from visualization import create_visualizations, create_comparative_visualization
 from visualization.reports import prepare_human_evaluation_sheet
 
 # Set up logging
@@ -245,7 +245,7 @@ def evaluate_qa_model(
         json.dump(summary, f, ensure_ascii=False, indent=2)
 
     # Generate visualizations
-    create_visualizations(results, evaluation_metrics, category_avg_metrics, output_dir, question_lang)
+    # create_visualizations(results, evaluation_metrics, category_avg_metrics, output_dir, question_lang)
 
     logger.info(f"QA evaluation complete. Results saved to {output_dir}")
 
@@ -333,7 +333,7 @@ def evaluate_both_languages(
         json.dump(combined_summary, f, ensure_ascii=False, indent=2)
 
     # Create comparative visualization
-    create_comparative_visualization(results, output_dir)
+    # create_comparative_visualization(results, output_dir)
 
     return combined_summary
 
