@@ -2,6 +2,8 @@
 import logging
 from difflib import SequenceMatcher
 
+from rouge_score import rouge_scorer
+
 from language import normalize_arabic, improved_tokenize_arabic
 from utils.text_processing import clean_text_for_comparison
 

@@ -1,3 +1,7 @@
+from difflib import SequenceMatcher
+
+from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
+
 from language import normalize_arabic, improved_tokenize_arabic
 from main import logger
 from utils import clean_text_for_comparison

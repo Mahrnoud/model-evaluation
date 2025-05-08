@@ -1,3 +1,11 @@
+import os
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+from main import logger
+
+
 def create_visualizations(results, evaluation_metrics, category_metrics, output_dir, lang_prefix):
     """
     Create visualizations from evaluation results with enhanced Arabic support
@@ -199,6 +207,7 @@ def create_visualizations(results, evaluation_metrics, category_metrics, output_
         plt.savefig(os.path.join(output_dir, f'{lang_prefix}_metric_agreement.png'))
         plt.close()
 
+
 def create_comparative_visualization(results, output_dir):
     """
     Create visualizations comparing QA performance across languages with enhanced Arabic support
@@ -363,4 +372,3 @@ def create_comparative_visualization(results, output_dir):
                 plt.close()
             except Exception as e:
                 logger.warning(f"Could not create radar chart: {e}")
-

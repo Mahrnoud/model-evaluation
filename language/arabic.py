@@ -3,9 +3,10 @@ import re
 import unicodedata
 from difflib import SequenceMatcher
 
+from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
+
 from metrics import calculate_rouge, calculate_f1_word_match, calculate_exact_match
 from utils import clean_text_for_comparison
-
 
 # Set up logging
 logging.basicConfig(
@@ -227,6 +228,7 @@ def advanced_tokenize_arabic(text):
 
     return tokens
 
+
 def get_arabic_stopwords():
     """Get a set of Arabic stopwords, using camel_tools if available, or a basic set otherwise"""
     try:
@@ -241,6 +243,7 @@ def get_arabic_stopwords():
             'إن', 'أن', 'كي', 'التي', 'الذي', 'اللذان', 'اللتان', 'الذين', 'اللاتي',
             'هو', 'هي', 'هم', 'هن', 'نحن', 'أنت', 'أنتما', 'أنتم', 'أنتن', 'أنا'
         ])
+
 
 # 3. Add Arabic-specific BLEU scoring
 def calculate_arabic_bleu(reference, hypothesis):
@@ -305,6 +308,7 @@ def calculate_arabic_bleu(reference, hypothesis):
     except Exception as e:
         logger.error(f"Error calculating BLEU score: {e}")
         return 0.0
+
 
 # 4. Add support for dialectal Arabic
 def detect_arabic_dialect(text):
@@ -446,4 +450,3 @@ def debug_arabic_processing(text):
     }
 
     return results
-
