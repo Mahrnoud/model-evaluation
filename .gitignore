@@ -3,3 +3,4 @@ venv
 data
 qa_evaluation_results
 qa_evaluation.log
+__pycache__
