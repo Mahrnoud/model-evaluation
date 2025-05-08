@@ -1,2 +1,5 @@
 venv
 .idea
+data
+qa_evaluation_results
+qa_evaluation.log

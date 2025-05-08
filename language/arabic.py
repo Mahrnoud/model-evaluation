@@ -3,10 +3,7 @@ import re
 import unicodedata
 from difflib import SequenceMatcher
 
-from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
-
-from metrics import calculate_rouge, calculate_f1_word_match, calculate_exact_match
-from utils import clean_text_for_comparison
+# REMOVED import from metrics to break circular dependency
 
 # Set up logging
 logging.basicConfig(
@@ -260,6 +257,9 @@ def calculate_arabic_bleu(reference, hypothesis):
     if not hypothesis or not reference:
         return 0.0
 
+    # Import here to avoid circular imports
+    from utils import clean_text_for_comparison
+
     # Clean and normalize texts first
     reference = clean_text_for_comparison(reference)
     hypothesis = clean_text_for_comparison(hypothesis)
@@ -285,6 +285,9 @@ def calculate_arabic_bleu(reference, hypothesis):
         # Character-level tokenization as fallback
         reference_tokens = list(reference)
         hypothesis_tokens = list(hypothesis)
+
+    # Import here to avoid circular imports
+    from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 
     # Use smoothing function to handle edge cases
     smoothie = SmoothingFunction().method1
@@ -369,6 +372,11 @@ def calculate_arabic_metrics(reference, hypothesis):
     Returns:
         Dictionary with multiple metrics
     """
+    # Import here to avoid circular imports
+    from metrics.bleu import calculate_bleu
+    from metrics.rouge import calculate_rouge
+    from metrics.exact_match import calculate_exact_match, calculate_f1_word_match
+
     # Basic metrics
     bleu = calculate_arabic_bleu(reference, hypothesis)
     rouge_scores = calculate_rouge(reference, hypothesis)
@@ -434,6 +442,8 @@ def debug_arabic_processing(text):
             'name': unicodedata.name(char, 'Unknown')
         })
 
+    # Import here to avoid circular import
+    from utils import clean_text_for_comparison
     # Apply various processing steps
     results['processed'] = {
         'normalized_nfc': unicodedata.normalize('NFC', text),

@@ -1,10 +1,13 @@
 from difflib import SequenceMatcher
+import logging
 
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 
-from language import normalize_arabic, improved_tokenize_arabic
-from main import logger
-from utils import clean_text_for_comparison
+# Import utils directly to avoid circular imports
+from utils.text_processing import clean_text_for_comparison
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 def calculate_bleu(reference, hypothesis):
@@ -34,6 +37,9 @@ def calculate_bleu(reference, hypothesis):
 
     # Decide on tokenization approach
     if is_arabic:
+        # Import here to avoid circular dependency
+        from language.arabic import normalize_arabic, improved_tokenize_arabic
+
         # First normalize
         reference = normalize_arabic(reference)
         hypothesis = normalize_arabic(hypothesis)
@@ -55,6 +61,16 @@ def calculate_bleu(reference, hypothesis):
         # For non-Arabic text, use word-level tokenization
         reference_tokens = reference.lower().split()
         hypothesis_tokens = hypothesis.lower().split()
+
+        # Remove stopwords if requested (for non-Arabic)
+        try:
+            from nltk.corpus import stopwords
+            english_stopwords = set(stopwords.words('english'))
+            reference_tokens = [token for token in reference_tokens if token not in english_stopwords]
+            hypothesis_tokens = [token for token in hypothesis_tokens if token not in english_stopwords]
+        except:
+            # If NLTK stopwords aren't available, continue without removing stopwords
+            pass
 
     # Use smoothing function to handle edge cases
     smoothie = SmoothingFunction().method1

@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 
 from rouge_score import rouge_scorer
 
-from language import normalize_arabic, improved_tokenize_arabic
+# Import utils directly to avoid circular imports
 from utils.text_processing import clean_text_for_comparison
 
 logging.basicConfig(
@@ -45,6 +45,9 @@ def calculate_rouge(reference, hypothesis):
         is_arabic = any('\u0600' <= c <= '\u06FF' for c in reference)
 
         if is_arabic:
+            # Import here to avoid circular dependency
+            from language.arabic import normalize_arabic, improved_tokenize_arabic
+
             # Normalize Arabic texts
             reference_normalized = normalize_arabic(reference)
             hypothesis_normalized = normalize_arabic(hypothesis)

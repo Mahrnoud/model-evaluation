@@ -5,20 +5,21 @@ import time
 from collections import defaultdict
 from difflib import SequenceMatcher
 
-import matplotlib.pyplot as plt
-
 import numpy as np
-
-from language import normalize_arabic
-from main import load_model_and_tokenizer, greedy_decode
-from metrics import calculate_exact_match, calculate_f1_word_match, calculate_rouge, calculate_bleu
-from utils import load_dataset, clean_text_for_comparison
 from tqdm import tqdm
-
 import logging
 
-# from visualization import create_visualizations, create_comparative_visualization
-from visualization.reports import prepare_human_evaluation_sheet
+# Import directly from the module to avoid circular imports
+from language.arabic import normalize_arabic
+from metrics.bleu import calculate_bleu
+from metrics.rouge import calculate_rouge
+from metrics.exact_match import calculate_exact_match, calculate_f1_word_match
+from utils.text_processing import clean_text_for_comparison
+from utils.io import load_dataset
+
+# Remove import from main.py
+# from main import load_model_and_tokenizer, greedy_decode
+from utils.greedy_inference import load_model_and_tokenizer, greedy_decode
 
 # Set up logging
 logging.basicConfig(
@@ -31,46 +32,64 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# If visualization module is needed, import it directly
+try:
+    from visualization.reports import prepare_human_evaluation_sheet
+    from visualization.plots import create_visualizations, create_comparative_visualization
+except ImportError:
+    logger.warning("Visualization modules not available, visualizations will be skipped")
+
+
+    # Define placeholder functions if imports fail
+    def prepare_human_evaluation_sheet(results, output_path, sample_size=50):
+        logger.warning("Human evaluation sheet preparation skipped due to missing modules")
+        return None
+
+
+    def create_visualizations(results, evaluation_metrics, category_metrics, output_dir, lang_prefix):
+        logger.warning("Visualization creation skipped due to missing modules")
+        return None
+
+
+    def create_comparative_visualization(results, output_dir):
+        logger.warning("Comparative visualization skipped due to missing modules")
+        return None
+
 
 def evaluate_qa_model(
-        model_path,
-        tokenizer_path,
-        dataset_path,
-        question_lang='en',  # Language of questions to use ('en' or 'ar')
-        sample_size=None,
-        output_dir='qa_evaluation_results',
-        max_length=256,
-        config=None,
-        prepare_human_eval=True,
-        debug_mode=False
+        model,
+        tokenizer,
+        device,
+        config
 ):
     """
     Evaluate QA model performance on a dataset with enhanced Arabic support
 
     Args:
-        model_path: Path to the model checkpoint
-        tokenizer_path: Path to the tokenizer
-        dataset_path: Path to the CSV dataset
-        question_lang: Language of questions to evaluate ('en' or 'ar')
-        sample_size: Number of samples to evaluate (None for all)
-        output_dir: Directory to save evaluation results
-        max_length: Maximum length for generated text
-        config: Optional model configuration
-        prepare_human_eval: Whether to prepare a human evaluation sheet
-        debug_mode: Whether to run in debug mode with detailed analysis
+        model: The loaded model
+        tokenizer: The loaded tokenizer
+        device: Device to run on (cuda or cpu)
+        config: Configuration object with evaluation settings
 
     Returns:
         Dictionary with evaluation summary
     """
+    # Get parameters from config
+    model_path = config.model_path
+    tokenizer_path = config.tokenizer_path
+    dataset_path = config.dataset_path
+    question_lang = config.question_lang
+    sample_size = config.sample_size
+    output_dir = config.output_dir
+    max_length = config.max_length
+    prepare_human_eval = config.prepare_human_eval
+    debug_mode = config.debug_mode
+
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
     # Load dataset
     questions, answers, categories, sub_categories, df = load_dataset(dataset_path, sample_size, question_lang)
-
-    # Load model and tokenizer
-    logger.info("Loading model and tokenizer")
-    model, tokenizer, device = load_model_and_tokenizer(model_path, tokenizer_path, config)
 
     # Prepare results storage
     results = []
@@ -244,274 +263,15 @@ def evaluate_qa_model(
     with open(summary_file, 'w', encoding='utf-8') as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
 
-    # Generate visualizations
-    # create_visualizations(results, evaluation_metrics, category_avg_metrics, output_dir, question_lang)
+    # Generate visualizations if visualization module is available
+    try:
+        create_visualizations(results, evaluation_metrics, category_avg_metrics, output_dir, question_lang)
+    except Exception as e:
+        logger.warning(f"Failed to create visualizations: {e}")
 
     logger.info(f"QA evaluation complete. Results saved to {output_dir}")
 
     return summary
-
-
-def evaluate_both_languages(
-        model_path,
-        tokenizer_path,
-        dataset_path,
-        sample_size=None,
-        output_dir='qa_evaluation_results',
-        max_length=256,
-        config=None,
-        prepare_human_eval=True,
-        debug_mode=False
-):
-    """
-    Evaluate QA model on both English and Arabic questions with enhanced metrics
-
-    Args:
-        model_path: Path to the model checkpoint
-        tokenizer_path: Path to the tokenizer
-        dataset_path: Path to the CSV dataset
-        sample_size: Number of samples to evaluate (None for all)
-        output_dir: Directory to save evaluation results
-        max_length: Maximum length for generated text
-        config: Optional model configuration
-        prepare_human_eval: Whether to prepare human evaluation sheets
-        debug_mode: Whether to run in debug mode with detailed analysis
-
-    Returns:
-        Dictionary with combined evaluation summary
-    """
-    languages = ['en', 'ar']
-    results = {}
-
-    for lang in languages:
-        print(f"\nEvaluating QA performance on {lang} questions:")
-
-        try:
-            # Run evaluation for this language
-            summary = evaluate_qa_model(
-                model_path=model_path,
-                tokenizer_path=tokenizer_path,
-                dataset_path=dataset_path,
-                question_lang=lang,
-                sample_size=sample_size,
-                output_dir=output_dir,
-                max_length=max_length,
-                config=config,
-                prepare_human_eval=prepare_human_eval,
-                debug_mode=debug_mode
-            )
-
-            results[lang] = summary
-
-            # Print summary
-            print(f"  Language: {summary['language']}")
-            print(f"  Total samples: {summary['total_samples']}")
-            print("  Quality Distribution:")
-            for quality, count in summary['quality_distribution'].items():
-                percentage = count / summary['total_samples'] * 100
-                print(f"    {quality}: {count} ({percentage:.1f}%)")
-            print("  Average Metrics:")
-            for metric, value in summary['average_metrics'].items():
-                if isinstance(value, (int, float)):
-                    print(f"    {metric}: {value:.4f}")
-                else:
-                    print(f"    {metric}: {value}")
-
-        except Exception as e:
-            logger.error(f"Error evaluating {lang} questions: {e}")
-            print(f"  Error: {e}")
-
-    # Create a combined summary
-    combined_summary = {
-        'language_results': results,
-        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
-    }
-
-    # Save combined summary
-    combined_file = os.path.join(output_dir, 'combined_qa_summary.json')
-    with open(combined_file, 'w', encoding='utf-8') as f:
-        json.dump(combined_summary, f, ensure_ascii=False, indent=2)
-
-    # Create comparative visualization
-    # create_comparative_visualization(results, output_dir)
-
-    return combined_summary
-
-
-def analyze_errors(results, output_dir, lang='ar', qualities=None, languages=None, lang1_quality=None,
-                   lang2_quality=None):
-    """
-    Analyze common error patterns in the evaluation results
-
-    Args:
-        results: List of evaluation results
-        output_dir: Directory to save analysis results
-        lang: Language to analyze ('ar' for Arabic)
-
-    Returns:
-        Dictionary with error patterns and counts
-    """
-    error_patterns = defaultdict(int)
-    error_examples = defaultdict(list)
-    max_examples = 3  # Maximum number of examples to store per error pattern
-
-    for result in results:
-        ref = result.get('reference_answer', '')
-        gen = result.get('generated_answer', '')
-
-        if not ref or not gen:
-            continue
-
-        # Skip if exact match or very high similarity
-        exact_match_score = calculate_exact_match(ref, gen)
-        if exact_match_score > 0.9:
-            continue
-
-        # Check for common error types
-        if len(gen) < len(ref) * 0.5:
-            error_patterns['too_short'] += 1
-            if len(error_examples['too_short']) < max_examples:
-                error_examples['too_short'].append({
-                    'question': result.get('question', ''),
-                    'reference': ref,
-                    'generated': gen
-                })
-        elif len(gen) > len(ref) * 1.5:
-            error_patterns['too_long'] += 1
-            if len(error_examples['too_long']) < max_examples:
-                error_examples['too_long'].append({
-                    'question': result.get('question', ''),
-                    'reference': ref,
-                    'generated': gen
-                })
-
-        # Check for missing dates, numbers, or proper nouns
-        ref_dates = re.findall(r'\b\d{4}\b', ref)
-        gen_dates = re.findall(r'\b\d{4}\b', gen)
-        if ref_dates and not any(d in gen_dates for d in ref_dates):
-            error_patterns['missing_dates'] += 1
-            if len(error_examples['missing_dates']) < max_examples:
-                error_examples['missing_dates'].append({
-                    'question': result.get('question', ''),
-                    'reference': ref,
-                    'generated': gen,
-                    'missing_date': ref_dates[0]
-                })
-
-        # Check for missing names (basic approach - look for capitalized words in ASCII text)
-        # and words with Al- prefix in Arabic
-        ref_names_ar = re.findall(r'\b(ال[\u0600-\u06FF]+)\b', ref)
-        gen_names_ar = re.findall(r'\b(ال[\u0600-\u06FF]+)\b', gen)
-        if ref_names_ar and not any(name in gen_names_ar for name in ref_names_ar):
-            error_patterns['missing_names'] += 1
-            if len(error_examples['missing_names']) < max_examples:
-                error_examples['missing_names'].append({
-                    'question': result.get('question', ''),
-                    'reference': ref,
-                    'generated': gen,
-                    'missing_name': ref_names_ar[0]
-                })
-
-        # Check for wrong structure - different sentence count
-        ref_sentences = len(re.split(r'[.!?؟،]', ref))
-        gen_sentences = len(re.split(r'[.!?؟،]', gen))
-        if abs(ref_sentences - gen_sentences) > 1:
-            error_patterns['wrong_structure'] += 1
-            if len(error_examples['wrong_structure']) < max_examples:
-                error_examples['wrong_structure'].append({
-                    'question': result.get('question', ''),
-                    'reference': ref,
-                    'generated': gen,
-                    'ref_sentences': ref_sentences,
-                    'gen_sentences': gen_sentences
-                })
-
-    # Save error analysis
-    error_file = os.path.join(output_dir, f'{lang}_error_analysis.json')
-    with open(error_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            'error_counts': dict(error_patterns),
-            'error_examples': error_examples
-        }, f, ensure_ascii=False, indent=2)
-
-    # Create error visualizations
-    if error_patterns:
-        plt.figure(figsize=(12, 8))
-
-    x = np.arange(len(qualities))
-    width = 0.35
-
-    plt.bar(x - width / 2, lang1_quality, width, label=f'{languages[0].upper()} Questions')
-    plt.bar(x + width / 2, lang2_quality, width, label=f'{languages[1].upper()} Questions')
-
-    plt.xlabel('Quality Level')
-    plt.ylabel('Proportion')
-    plt.title('Answer Quality Comparison by Language')
-    plt.xticks(x, qualities)
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'language_quality_comparison.png'))
-    plt.close()
-
-    # Plot generation time comparison
-    plt.figure(figsize=(8, 6))
-    plt.bar(languages, os.times, alpha=0.7)
-    plt.xlabel('Question Language')
-    plt.ylabel('Average Time (seconds)')
-    plt.title('Answer Generation Time by Language')
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'language_generation_time.png'))
-    plt.close()
-
-    # If there are common categories across languages, plot category comparison
-    if all('category_metrics' in results[lang] for lang in languages):
-        # Find common categories
-        categories_lang1 = set(results[languages[0]]['category_metrics'].keys())
-        categories_lang2 = set(results[languages[1]]['category_metrics'].keys())
-        common_categories = categories_lang1.intersection(categories_lang2)
-
-        if common_categories:
-            # Limit to top N categories if there are many
-            if len(common_categories) > 8:
-                # For each category, compute the average of BLEU scores across both languages
-                category_scores = {}
-                for cat in common_categories:
-                    avg_score = (
-                                        results[languages[0]]['category_metrics'][cat]['bleu'] +
-                                        results[languages[1]]['category_metrics'][cat]['bleu']
-                                ) / 2
-                    category_scores[cat] = avg_score
-
-                # Keep only the top 8 categories by average score
-                common_categories = sorted(
-                    category_scores.keys(),
-                    key=lambda cat: category_scores[cat],
-                    reverse=True
-                )[:8]
-
-            # Compare performance across languages by category
-            plt.figure(figsize=(14, 8))
-
-            x = np.arange(len(common_categories))
-            width = 0.35
-
-            bleu_lang1 = [results[languages[0]]['category_metrics'][cat]['bleu'] for cat in common_categories]
-            bleu_lang2 = [results[languages[1]]['category_metrics'][cat]['bleu'] for cat in common_categories]
-
-            plt.bar(x - width / 2, bleu_lang1, width, label=f'{languages[0].upper()} Questions')
-            plt.bar(x + width / 2, bleu_lang2, width, label=f'{languages[1].upper()} Questions')
-
-            plt.xlabel('Category')
-            plt.ylabel('BLEU Score')
-            plt.title('QA Performance Comparison by Category and Language')
-            plt.xticks(x, common_categories, rotation=45, ha='right')
-            plt.legend()
-
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_dir, 'category_language_comparison.png'))
-            plt.close()
 
 
 def analyze_sample(reference, generated, sample_id, question_lang):
@@ -650,3 +410,188 @@ def debug_text_comparison(reference, generated, id_num):
     logger.debug(f"No-space reference (len={len(no_space_ref)}): {repr(no_space_ref)}")
     logger.debug(f"No-space generated (len={len(no_space_gen)}): {repr(no_space_gen)}")
     logger.debug(f"No-space strings equal? {no_space_ref == no_space_gen}")
+
+
+def analyze_errors(results, output_dir, lang='ar'):
+    """
+    Analyze common error patterns in the evaluation results
+
+    Args:
+        results: List of evaluation results
+        output_dir: Directory to save analysis results
+        lang: Language to analyze ('ar' for Arabic)
+
+    Returns:
+        Dictionary with error patterns and counts
+    """
+    error_patterns = defaultdict(int)
+    error_examples = defaultdict(list)
+    max_examples = 3  # Maximum number of examples to store per error pattern
+
+    for result in results:
+        ref = result.get('reference_answer', '')
+        gen = result.get('generated_answer', '')
+
+        if not ref or not gen:
+            continue
+
+        # Skip if exact match or very high similarity
+        exact_match_score = calculate_exact_match(ref, gen)
+        if exact_match_score > 0.9:
+            continue
+
+        # Check for common error types
+        if len(gen) < len(ref) * 0.5:
+            error_patterns['too_short'] += 1
+            if len(error_examples['too_short']) < max_examples:
+                error_examples['too_short'].append({
+                    'question': result.get('question', ''),
+                    'reference': ref,
+                    'generated': gen
+                })
+        elif len(gen) > len(ref) * 1.5:
+            error_patterns['too_long'] += 1
+            if len(error_examples['too_long']) < max_examples:
+                error_examples['too_long'].append({
+                    'question': result.get('question', ''),
+                    'reference': ref,
+                    'generated': gen
+                })
+
+        # Check for missing dates, numbers, or proper nouns
+        ref_dates = re.findall(r'\b\d{4}\b', ref)
+        gen_dates = re.findall(r'\b\d{4}\b', gen)
+        if ref_dates and not any(d in gen_dates for d in ref_dates):
+            error_patterns['missing_dates'] += 1
+            if len(error_examples['missing_dates']) < max_examples:
+                error_examples['missing_dates'].append({
+                    'question': result.get('question', ''),
+                    'reference': ref,
+                    'generated': gen,
+                    'missing_date': ref_dates[0]
+                })
+
+        # Check for missing names (basic approach - look for capitalized words in ASCII text)
+        # and words with Al- prefix in Arabic
+        ref_names_ar = re.findall(r'\b(ال[\u0600-\u06FF]+)\b', ref)
+        gen_names_ar = re.findall(r'\b(ال[\u0600-\u06FF]+)\b', gen)
+        if ref_names_ar and not any(name in gen_names_ar for name in ref_names_ar):
+            error_patterns['missing_names'] += 1
+            if len(error_examples['missing_names']) < max_examples:
+                error_examples['missing_names'].append({
+                    'question': result.get('question', ''),
+                    'reference': ref,
+                    'generated': gen,
+                    'missing_name': ref_names_ar[0]
+                })
+
+        # Check for wrong structure - different sentence count
+        ref_sentences = len(re.split(r'[.!?؟،]', ref))
+        gen_sentences = len(re.split(r'[.!?؟،]', gen))
+        if abs(ref_sentences - gen_sentences) > 1:
+            error_patterns['wrong_structure'] += 1
+            if len(error_examples['wrong_structure']) < max_examples:
+                error_examples['wrong_structure'].append({
+                    'question': result.get('question', ''),
+                    'reference': ref,
+                    'generated': gen,
+                    'ref_sentences': ref_sentences,
+                    'gen_sentences': gen_sentences
+                })
+
+    # Save error analysis
+    error_file = os.path.join(output_dir, f'{lang}_error_analysis.json')
+    with open(error_file, 'w', encoding='utf-8') as f:
+        json.dump({
+            'error_counts': dict(error_patterns),
+            'error_examples': error_examples
+        }, f, ensure_ascii=False, indent=2)
+
+    return error_patterns
+
+
+def evaluate_both_languages(
+        model,
+        tokenizer,
+        device,
+        config
+):
+    """
+    Evaluate QA model on both English and Arabic questions with enhanced metrics
+
+    Args:
+        model: The loaded model
+        tokenizer: The loaded tokenizer
+        device: Device to run on (cuda or cpu)
+        config: Configuration object with evaluation settings
+
+    Returns:
+        Dictionary with combined evaluation summary
+    """
+    languages = ['en', 'ar']
+    results = {}
+
+    for lang in languages:
+        print(f"\nEvaluating QA performance on {lang} questions:")
+
+        # Create a language-specific config by copying and modifying the original
+        lang_config = type(config)(
+            model_path=config.model_path,
+            tokenizer_path=config.tokenizer_path,
+            dataset_path=config.dataset_path,
+            question_lang=lang,
+            sample_size=config.sample_size,
+            output_dir=config.output_dir,
+            max_length=config.max_length,
+            model_config=config.model_config,
+            prepare_human_eval=config.prepare_human_eval,
+            debug_mode=config.debug_mode
+        )
+
+        try:
+            # Run evaluation for this language
+            summary = evaluate_qa_model(
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                config=lang_config
+            )
+
+            results[lang] = summary
+
+            # Print summary
+            print(f"  Language: {summary['language']}")
+            print(f"  Total samples: {summary['total_samples']}")
+            print("  Quality Distribution:")
+            for quality, count in summary['quality_distribution'].items():
+                percentage = count / summary['total_samples'] * 100
+                print(f"    {quality}: {count} ({percentage:.1f}%)")
+            print("  Average Metrics:")
+            for metric, value in summary['average_metrics'].items():
+                if isinstance(value, (int, float)):
+                    print(f"    {metric}: {value:.4f}")
+                else:
+                    print(f"    {metric}: {value}")
+
+        except Exception as e:
+            logger.error(f"Error evaluating {lang} questions: {e}")
+            print(f"  Error: {e}")
+
+    # Create a combined summary
+    combined_summary = {
+        'language_results': results,
+        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    # Save combined summary
+    combined_file = os.path.join(config.output_dir, 'combined_qa_summary.json')
+    with open(combined_file, 'w', encoding='utf-8') as f:
+        json.dump(combined_summary, f, ensure_ascii=False, indent=2)
+
+    # Create comparative visualization if visualization module is available
+    try:
+        create_comparative_visualization(results, config.output_dir)
+    except Exception as e:
+        logger.warning(f"Failed to create comparative visualization: {e}")
+
+    return combined_summary

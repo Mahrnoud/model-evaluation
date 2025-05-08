@@ -1,9 +1,8 @@
 import re
 from difflib import SequenceMatcher
 
-from language import normalize_arabic, improved_tokenize_arabic
-from language.arabic import get_arabic_stopwords
-from utils import clean_text_for_comparison
+# Import utils directly to avoid circular imports
+from utils.text_processing import clean_text_for_comparison
 
 
 def calculate_f1_word_match(reference, hypothesis, exclude_stopwords=True):
@@ -34,6 +33,9 @@ def calculate_f1_word_match(reference, hypothesis, exclude_stopwords=True):
 
     # For Arabic text, first normalize
     if is_arabic:
+        # Import here to avoid circular dependency
+        from language.arabic import normalize_arabic, improved_tokenize_arabic
+
         reference = normalize_arabic(reference)
         hypothesis = normalize_arabic(hypothesis)
 
@@ -45,8 +47,6 @@ def calculate_f1_word_match(reference, hypothesis, exclude_stopwords=True):
         if re.sub(r'\s+', '', reference) == re.sub(r'\s+', '', hypothesis):
             return 0.95
 
-    # Tokenize the text
-    if is_arabic:
         # Tokenize using improved function
         ref_tokens = improved_tokenize_arabic(reference)
         hyp_tokens = improved_tokenize_arabic(hypothesis)
@@ -57,6 +57,8 @@ def calculate_f1_word_match(reference, hypothesis, exclude_stopwords=True):
 
         # Remove stopwords if requested
         if exclude_stopwords:
+            # Import here to avoid circular dependency
+            from language.arabic import get_arabic_stopwords
             stopwords = get_arabic_stopwords()
             ref_tokens = [token for token in ref_tokens if token not in stopwords]
             hyp_tokens = [token for token in hyp_tokens if token not in stopwords]
@@ -67,8 +69,8 @@ def calculate_f1_word_match(reference, hypothesis, exclude_stopwords=True):
 
         # Remove stopwords if requested (for non-Arabic)
         if exclude_stopwords:
-            from nltk.corpus import stopwords
             try:
+                from nltk.corpus import stopwords
                 english_stopwords = set(stopwords.words('english'))
                 ref_tokens = [token for token in ref_tokens if token not in english_stopwords]
                 hyp_tokens = [token for token in hyp_tokens if token not in english_stopwords]
@@ -142,6 +144,9 @@ def calculate_exact_match(reference, hypothesis):
     is_arabic = any('\u0600' <= c <= '\u06FF' for c in reference)
 
     if is_arabic:
+        # Import here to avoid circular dependency
+        from language.arabic import normalize_arabic
+
         # Normalize Arabic texts
         norm_ref = normalize_arabic(reference)
         norm_hyp = normalize_arabic(hypothesis)
