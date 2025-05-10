@@ -1,6 +1,10 @@
 venv
 .idea
 data
-qa_evaluation_results
-qa_evaluation.log
 __pycache__
+qa_evaluation.log
+qa_evaluation_results
+qa_evaluation_results_0
+qa_evaluation_results_1
+qa_evaluation_results_2
+qa_evaluation_results_math_1

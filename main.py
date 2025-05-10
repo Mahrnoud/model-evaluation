@@ -22,7 +22,7 @@ import json
 import pandas as pd
 
 # First import the most basic modules with no dependencies
-from utils.greedy_inference import load_model_and_tokenizer, greedy_decode
+from utils.greedy_inference import load_model_and_tokenizer
 from evaluation.config import EvaluationConfig
 
 # Now import the modules that depend on the basic ones
@@ -335,7 +335,7 @@ def main():
                         help='Path to model checkpoint')
     parser.add_argument('--tokenizer_path', type=str, default="miscovery/tokenizer",
                         help='Path to tokenizer')
-    parser.add_argument('--dataset_path', type=str, default="data/train.csv",
+    parser.add_argument('--dataset_path', type=str, default="data/translation_dataset.csv",
                         help='Path to CSV or JSON dataset')
 
     # Evaluation settings
@@ -374,8 +374,8 @@ def main():
     parser.add_argument('--d_model', type=int, default=768, help='Model dimension')
     parser.add_argument('--num_heads', type=int, default=12, help='Number of attention heads')
     parser.add_argument('--d_ff', type=int, default=3072, help='Feed-forward dimension')
-    parser.add_argument('--num_encoder_layers', type=int, default=6, help='Number of encoder layers')
-    parser.add_argument('--num_decoder_layers', type=int, default=6, help='Number of decoder layers')
+    parser.add_argument('--num_encoder_layers', type=int, default=12, help='Number of encoder layers')
+    parser.add_argument('--num_decoder_layers', type=int, default=12, help='Number of decoder layers')
 
     # Debug options
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
@@ -444,7 +444,6 @@ def main():
         "d_ff": args.d_ff,
         "num_encoder_layers": args.num_encoder_layers,
         "num_decoder_layers": args.num_decoder_layers,
-        # vocab_size and pad_token_id will be set based on tokenizer
     }
 
     # Create evaluation configuration
